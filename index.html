@@ -84,15 +84,20 @@
         /* Loading Overlay */
         #loader {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.8); z-index: 2000;
-            display: flex; justify-content: center; align-items: center;
+            background: rgba(255,255,255,0.9); z-index: 2000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
             font-size: 1.5rem; color: #333; font-weight: bold;
         }
+        .spinner { margin-top: 15px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div id="loader">Loading Cadastral Data...</div>
+    <div id="loader">
+        <div>Loading Cadastral Data...</div>
+        <div class="spinner"></div>
+    </div>
 
     <div id="map"></div>
 
@@ -134,8 +139,8 @@
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <script>
-        // 1. Initialize Map
-        const map = L.map('map', {zoomControl: false}).setView([-37.7, 145.0], 11); 
+        // 1. Initialize Map (CRITICAL for raw GeoJSON speed: preferCanvas is true)
+        const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([-37.7, 145.0], 11); 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -143,7 +148,7 @@
             maxZoom: 19
         }).addTo(map);
 
-        // Add the Address Search Bar (Geocoder)
+        // Add the Address Search Bar
         L.Control.geocoder({
             position: 'topleft',
             placeholder: 'Search for an address in Melbourne...',
@@ -151,13 +156,12 @@
         }).on('markgeocode', function(e) {
             const bbox = e.geocode.bbox;
             map.fitBounds(bbox);
-            // Drop a temporary pin at the searched location
             L.marker(e.geocode.center).addTo(map).bindPopup(e.geocode.name).openPopup();
         }).addTo(map);
 
         let banyuleLayer, darebinLayer, nillumbikLayer;
 
-        // 2. Color Ramps (Darker = Better Score)
+        // 2. Color Ramps
         function getBanyuleColor(score) {
             return score > 7 ? '#08519c' : score > 5 ? '#3182bd' : score > 3 ? '#6baed6' : score > 0 ? '#bdd7e7' : '#eff3ff';
         }
@@ -175,16 +179,15 @@
             return activeCheckboxes.every(checkbox => feature.properties[checkbox.value] === 1);
         }
 
-        // 4. Styling Function
+        // 4. Styling Function (CRITICAL for speed: weight is 0)
         function styleFeature(feature, colorFunction) {
             if (!passesFilter(feature)) {
                 return { opacity: 0, fillOpacity: 0, weight: 0, interactive: false }; 
             }
             return {
                 fillColor: colorFunction(feature.properties.TotalScore),
-                weight: 0.5,
-                opacity: 0.5,
-                color: '#666', 
+                weight: 0,        // <--- 0 weight removes borders, massively speeding up rendering
+                opacity: 0,
                 fillOpacity: 0.85
             };
         }
@@ -198,12 +201,13 @@
             });
         });
 
-        // 5. Hover Interactions (The Info Panel)
+        // 5. Hover Interactions
         function onEachFeature(feature, layer, lgaName) {
             layer.on({
                 mouseover: function(e) {
                     const activeLayer = e.target;
-                    activeLayer.setStyle({ weight: 3, color: '#f39c12', opacity: 1, fillOpacity: 1 });
+                    // Briefly turn on a border just for the single property being hovered over
+                    activeLayer.setStyle({ weight: 2, color: '#f39c12', opacity: 1, fillOpacity: 1 });
                     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) { activeLayer.bringToFront(); }
                     
                     const p = feature.properties;
@@ -230,19 +234,16 @@
             });
         }
 
-        // 6. Data Fetching & Auto-Zoom
-        // Notice the paths now look inside the 'data/' folder and look for the 'WGS' files
+        // 6. Data Fetching & Auto-Zoom (Pointing to the exact filenames in your image)
         Promise.all([
-            fetch('data/BanyuleWGS.geojson').then(r => r.json()),
-            fetch('data/DarebinWGS.geojson').then(r => r.json()),
-            fetch('data/NillumbikWGS.geojson').then(r => r.json())
+            fetch('data/Banyule.geojson').then(r => r.json()),
+            fetch('data/Darebin.geojson').then(r => r.json()),
+            fetch('data/Nillumbik.geojson').then(r => r.json())
         ])
         .then(([banyuleData, darebinData, nillumbikData]) => {
             
-            // Remove the loading screen once data arrives
             document.getElementById('loader').style.display = 'none';
 
-            // Render the layers
             banyuleLayer = L.geoJson(banyuleData, {
                 style: f => styleFeature(f, getBanyuleColor),
                 onEachFeature: (f, l) => onEachFeature(f, l, 'Banyule')
@@ -255,4 +256,18 @@
 
             nillumbikLayer = L.geoJson(nillumbikData, {
                 style: f => styleFeature(f, getNillumbikColor),
-                onEachFeature: (f, l)
+                onEachFeature: (f, l) => onEachFeature(f, l, 'Nillumbik')
+            }).addTo(map);
+
+            const allDataGroup = L.featureGroup([banyuleLayer, darebinLayer, nillumbikLayer]);
+            map.fitBounds(allDataGroup.getBounds());
+
+        })
+        .catch(err => {
+            console.error("Error loading GeoJSON data:", err);
+            document.getElementById('loader').innerText = "Error loading data. Check console.";
+        });
+
+    </script>
+</body>
+</html>
