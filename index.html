@@ -38,7 +38,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             z-index: 1000;
-            display: none; /* Hidden until hovered */
+            display: none;
         }
         .info-panel h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
         .score-badge { font-weight: bold; padding: 3px 8px; border-radius: 12px; background: #eee; }
@@ -65,7 +65,7 @@
 
     <div class="sidebar">
         <h2>The 15-Minute Suburb</h2>
-        <p style="font-size: 0.85rem; color: #666;">Select amenities to filter properties. Only properties with access to <strong>ALL</strong> selected amenities will remain visible.</p>
+        <p style="font-size: 0.85rem; color: #666;">Select amenities below. Properties shown will have <strong>at least</strong> the selected amenities.</p>
         
         <div class="filter-group" id="filters">
             <label><input type="checkbox" value="supermarket"> Supermarket</label>
@@ -98,18 +98,16 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // 1. Initialize Map (Centered roughly on Northern Suburbs)
-        const map = L.map('map').setView([-34.7, 145.0], 12); // Adjust coordinates to center your specific data
+        // 1. Initialize Map
+        const map = L.map('map').setView([-34.7, 145.0], 12); 
 
-        // 2. Add a clean, lightweight basemap (CartoDB Positron)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
         }).addTo(map);
 
-        // Variables to hold our layers
         let banyuleLayer, darebinLayer, nillumbikLayer;
 
-        // 3. Define Color Ramps based on TotalScore (Darker = Higher Score)
+        // 2. Color Ramps
         function getBanyuleColor(score) {
             return score > 7 ? '#08519c' : score > 5 ? '#3182bd' : score > 3 ? '#6baed6' : score > 0 ? '#bdd7e7' : '#eff3ff';
         }
@@ -120,36 +118,34 @@
             return score > 7 ? '#006d2c' : score > 5 ? '#31a354' : score > 3 ? '#74c476' : score > 0 ? '#bae4b3' : '#edf8e9';
         }
 
-        // 4. Filtering Logic
+        // 3. New Filtering Logic
         function passesFilter(feature) {
-            const checkboxes = document.querySelectorAll('#filters input[type="checkbox"]:checked');
-            for (let checkbox of checkboxes) {
-                const attribute = checkbox.value;
-                // If a checked filter has a value of 0 in the property, it fails the filter
-                if (feature.properties[attribute] !== 1) {
-                    return false;
-                }
-            }
-            return true; // Passed all checked filters
+            // Get all checkboxes that are currently ticked
+            const activeCheckboxes = Array.from(document.querySelectorAll('#filters input[type="checkbox"]:checked'));
+            
+            // If nothing is ticked, show everything
+            if (activeCheckboxes.length === 0) return true; 
+            
+            // The property MUST have a value of 1 for EVERY box that is currently checked.
+            // It ignores the boxes that are NOT checked.
+            return activeCheckboxes.every(checkbox => feature.properties[checkbox.value] === 1);
         }
 
-        // 5. Dynamic Styling Function
+        // 4. Styling Function
         function styleFeature(feature, colorFunction) {
-            // If it doesn't pass the filter, make it completely transparent
             if (!passesFilter(feature)) {
-                return { opacity: 0, fillOpacity: 0, weight: 0 };
+                return { opacity: 0, fillOpacity: 0, weight: 0, interactive: false }; // Hide completely and disable hover
             }
-            // If it passes, color it based on its TotalScore
             return {
                 fillColor: colorFunction(feature.properties.TotalScore),
                 weight: 1,
                 opacity: 1,
-                color: '#333', // Dark grey border
+                color: '#333', 
                 fillOpacity: 0.8
             };
         }
 
-        // Re-apply styles to all layers when a checkbox is toggled
+        // Re-apply styles on click
         document.querySelectorAll('#filters input').forEach(checkbox => {
             checkbox.addEventListener('change', () => {
                 if(banyuleLayer) banyuleLayer.setStyle(f => styleFeature(f, getBanyuleColor));
@@ -158,21 +154,18 @@
             });
         });
 
-        // 6. Hover Interactions
+        // 5. Hover Interactions
         function onEachFeature(feature, layer, lgaName) {
             layer.on({
                 mouseover: function(e) {
                     const layer = e.target;
-                    // Highlight border
                     layer.setStyle({ weight: 3, color: '#ffff00', fillOpacity: 1 });
                     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) { layer.bringToFront(); }
                     
-                    // Populate Info Panel
                     const p = feature.properties;
                     document.getElementById('infoLGA').innerText = lgaName;
                     document.getElementById('infoScore').innerText = p.TotalScore;
                     
-                    // List Amenities
                     let amenitiesHTML = '';
                     const list = ['supermarket', 'train', 'tram', 'park', 'doctors', 'hospital', 'highschool', 'uni', 'postoffice'];
                     list.forEach(item => {
@@ -185,7 +178,6 @@
                     document.getElementById('infoPanel').style.display = 'block';
                 },
                 mouseout: function(e) {
-                    // Reset style based on current filter state
                     if (lgaName === 'Banyule') banyuleLayer.resetStyle(e.target);
                     if (lgaName === 'Darebin') darebinLayer.resetStyle(e.target);
                     if (lgaName === 'Nillumbik') nillumbikLayer.resetStyle(e.target);
@@ -194,29 +186,36 @@
             });
         }
 
-        // 7. Load Data
-        // NOTE: Ensure your GeoJSON files are in a folder named 'data' next to this index.html file
+        // 6. Data Fetching with Error Handling
+        // NOTE: Make sure the path exactly matches where your geojson files are.
+        // If they are in the exact same folder as index.html, remove the 'data/' prefix below.
         
-        fetch('data/Banyule.geojson').then(r => r.json()).then(data => {
-            banyuleLayer = L.geoJson(data, {
-                style: f => styleFeature(f, getBanyuleColor),
-                onEachFeature: (f, l) => onEachFeature(f, l, 'Banyule')
-            }).addTo(map);
-        });
+        fetch('data/Banyule.geojson')
+            .then(r => r.json())
+            .then(data => {
+                banyuleLayer = L.geoJson(data, {
+                    style: f => styleFeature(f, getBanyuleColor),
+                    onEachFeature: (f, l) => onEachFeature(f, l, 'Banyule')
+                }).addTo(map);
+            }).catch(e => console.error("Error loading Banyule data. Are you using a local server?", e));
 
-        fetch('data/Darebin.geojson').then(r => r.json()).then(data => {
-            darebinLayer = L.geoJson(data, {
-                style: f => styleFeature(f, getDarebinColor),
-                onEachFeature: (f, l) => onEachFeature(f, l, 'Darebin')
-            }).addTo(map);
-        });
+        fetch('data/Darebin.geojson')
+            .then(r => r.json())
+            .then(data => {
+                darebinLayer = L.geoJson(data, {
+                    style: f => styleFeature(f, getDarebinColor),
+                    onEachFeature: (f, l) => onEachFeature(f, l, 'Darebin')
+                }).addTo(map);
+            }).catch(e => console.error("Error loading Darebin data:", e));
 
-        fetch('data/Nillumbik.geojson').then(r => r.json()).then(data => {
-            nillumbikLayer = L.geoJson(data, {
-                style: f => styleFeature(f, getNillumbikColor),
-                onEachFeature: (f, l) => onEachFeature(f, l, 'Nillumbik')
-            }).addTo(map);
-        });
+        fetch('data/Nillumbik.geojson')
+            .then(r => r.json())
+            .then(data => {
+                nillumbikLayer = L.geoJson(data, {
+                    style: f => styleFeature(f, getNillumbikColor),
+                    onEachFeature: (f, l) => onEachFeature(f, l, 'Nillumbik')
+                }).addTo(map);
+            }).catch(e => console.error("Error loading Nillumbik data:", e));
 
     </script>
 </body>
