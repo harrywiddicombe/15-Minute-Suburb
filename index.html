@@ -3,152 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The 15-Minute Suburb: Melbourne Accessibility</title>
+    <title>The 15-Minute Suburb | Spatial Equity Dashboard</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     
     <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #334155;
+            --accent: #0ea5e9;
+            --accent-hover: #0284c7;
+            --bg-glass: rgba(255, 255, 255, 0.92);
+            --border: #e2e8f0;
+        }
+
         body, html { 
             margin: 0; padding: 0; height: 100%; 
             font-family: 'Inter', sans-serif; 
-            background-color: #e9ecef;
+            background-color: #f8fafc;
+            overflow: hidden;
         }
-        #map { height: 100%; width: 100%; z-index: 1;}
+        #map { height: 100%; width: 100%; z-index: 1; background: #e2e8f0;}
         
-        /* Sidebar Styling - Prettier & More Prominent */
-        .sidebar {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 320px;
-            background: rgba(255, 255, 255, 0.98);
-            padding: 30px 25px;
+        /* Modern UI Panels */
+        .glass-panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
             border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.12);
             z-index: 1000;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.5);
         }
-        
-        /* Bigger, bolder titles */
-        .sidebar h1 { 
-            margin: 0 0 5px 0; 
-            font-size: 1.8rem; /* Increased size */
-            font-weight: 800;
-            color: #1e293b; 
-            line-height: 1.1;
-        }
-        .sidebar h2 { 
-            margin: 0 0 20px 0; 
-            font-size: 1rem; 
-            color: #64748b; 
-            font-weight: 600; 
-            text-transform: uppercase; 
-            letter-spacing: 1.5px;
-        }
-        
-        /* Clearer Instructions Box */
-        .instructions { 
-            background-color: #f0f9ff; 
-            border-left: 4px solid #0ea5e9; 
-            padding: 12px 15px; 
-            font-size: 0.9rem; 
-            color: #0f172a; 
-            border-radius: 4px 8px 8px 4px;
-            margin-bottom: 25px;
-            line-height: 1.5;
-        }
-        
-        /* Checkbox Styling */
-        .filter-group { display: flex; flex-direction: column; gap: 12px; }
-        .filter-group label { 
-            cursor: pointer; 
-            font-size: 0.95rem; 
-            font-weight: 400;
-            display: flex; 
-            align-items: center; 
-            color: #334155;
-            transition: all 0.2s ease;
-            padding: 6px 10px;
-            border-radius: 8px;
-        }
-        .filter-group label:hover { 
-            background-color: #f1f5f9; 
-            color: #0284c7; 
-        }
-        .filter-group input[type="checkbox"] { 
-            margin-right: 12px; 
-            width: 18px; 
-            height: 18px; 
-            cursor: pointer; 
-            accent-color: #0ea5e9;
-        }
-        
-        /* Info Panel (Hover Data) */
-        .info-panel {
-            position: absolute;
-            top: 20px;
-            left: 380px; /* Moved next to the sidebar */
-            width: 260px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            z-index: 1000;
-            display: none;
-            backdrop-filter: blur(5px);
-            border: 1px solid #e2e8f0;
-        }
-        .info-panel h3 { margin: 0 0 15px 0; font-size: 1.1rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;}
-        .info-panel p { margin: 8px 0; font-size: 0.9rem; color: #475569;}
-        .score-badge { font-weight: 800; padding: 4px 10px; border-radius: 20px; background: #e2e8f0; color: #0f172a; font-size: 1rem;}
 
-        /* Legend */
+        /* Sidebar Styling */
+        .sidebar {
+            position: absolute; top: 20px; left: 20px;
+            width: 340px; padding: 0;
+            display: flex; flex-direction: column;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        /* Custom Scrollbar for Sidebar */
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .sidebar-header {
+            padding: 24px 24px 16px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .sidebar h1 { margin: 0 0 6px 0; font-size: 1.6rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; line-height: 1.2;}
+        .sidebar h2 { margin: 0; font-size: 0.85rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;}
+        
+        /* Real-Time Metric Dashboard */
+        .metric-card {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 16px 24px 0 24px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .metric-value { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+        .metric-label { font-size: 0.75rem; color: var(--secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;}
+
+        /* Controls Section */
+        .sidebar-content { padding: 24px; }
+        .instructions { 
+            font-size: 0.85rem; color: var(--secondary); margin-bottom: 20px; line-height: 1.5; 
+        }
+        
+        /* Beautiful Toggle Checkboxes */
+        .filter-group { display: flex; flex-direction: column; gap: 8px; }
+        .filter-label { 
+            cursor: pointer; font-size: 0.95rem; font-weight: 500;
+            display: flex; align-items: center; justify-content: space-between;
+            color: var(--secondary);
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+            background: #ffffff;
+        }
+        .filter-label:hover { border-color: var(--accent); background: #f0f9ff; color: var(--primary); }
+        .filter-label input[type="checkbox"] { 
+            width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);
+        }
+
+        /* Hover Info Panel */
+        .info-panel {
+            position: absolute; top: 20px; left: 380px; width: 280px;
+            padding: 20px; display: none;
+        }
+        .info-panel h3 { margin: 0 0 10px 0; font-size: 1.1rem; color: var(--primary); font-weight: 700;}
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem;}
+        .score-badge { font-weight: 800; padding: 4px 12px; border-radius: 20px; background: var(--primary); color: white; font-size: 1.1rem;}
+        .amenities-list { margin-top: 15px; border-top: 1px solid var(--border); padding-top: 12px; font-size: 0.85rem; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;}
+
+        /* Professional Legend */
         .legend {
-            position: absolute;
-            bottom: 30px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            z-index: 1000;
-            font-size: 0.85rem;
-            line-height: 1.8;
-            color: #334155;
-            border: 1px solid #e2e8f0;
+            position: absolute; bottom: 30px; right: 20px;
+            padding: 20px; width: 260px;
         }
-        .legend-title { font-weight: 600; margin-bottom: 8px; display: block; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; color: #0f172a;}
-        .legend-color { width: 16px; height: 16px; display: inline-block; margin-right: 8px; vertical-align: middle; border-radius: 4px;}
+        .legend-title { font-weight: 700; margin-bottom: 12px; display: block; color: var(--primary); font-size: 0.95rem;}
+        .legend-section { margin-bottom: 15px; }
+        .legend-subtitle { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 6px;}
+        .gradient-bar { height: 12px; border-radius: 6px; margin-bottom: 4px; width: 100%;}
+        .banyule-grad { background: linear-gradient(to right, #eff3ff, #bdd7e7, #6baed6, #3182bd, #08519c); }
+        .darebin-grad { background: linear-gradient(to right, #feedde, #fdbe85, #fd8d3c, #e6550d, #a63603); }
+        .nillumbik-grad { background: linear-gradient(to right, #edf8e9, #bae4b3, #74c476, #31a354, #006d2c); }
+        .legend-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--secondary); font-weight: 500;}
         
-        /* Customizing the Geocoder position to Top Right */
-        .leaflet-control-geocoder { 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important; 
-            border-radius: 8px !important; 
-            border: none !important;
+        /* Map Controls Tweaks */
+        .leaflet-control-geocoder { box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important; border-radius: 8px !important; border: none !important;}
+        
+        /* Custom Reset View Button */
+        .reset-view-btn {
+            background: white; border: 2px solid rgba(0,0,0,0.2); background-clip: padding-box;
+            width: 34px; height: 34px; border-radius: 4px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,0.65);
         }
-        
-        /* Modern Loading Overlay */
+        .reset-view-btn:hover { background: #f4f4f4; }
+        .reset-view-btn svg { width: 18px; height: 18px; fill: #464646; }
+
+        /* Professional Loading Overlay */
         #loader {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #f8fafc; z-index: 2000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-size: 1.2rem; color: #475569; font-weight: 600;
         }
         .spinner { 
-            margin-bottom: 20px; 
-            border: 4px solid #e2e8f0; 
-            border-top: 4px solid #0ea5e9; 
-            border-radius: 50%; 
-            width: 50px; 
-            height: 50px; 
-            animation: spin 1s linear infinite; 
+            margin-bottom: 24px; border: 4px solid var(--border); border-top: 4px solid var(--accent); 
+            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; 
         }
+        .loader-title { font-size: 1.5rem; color: var(--primary); font-weight: 800; margin-bottom: 8px;}
+        .loader-subtitle { font-size: 0.95rem; color: var(--secondary); font-weight: 500;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -156,108 +152,253 @@
 
     <div id="loader">
         <div class="spinner"></div>
-        <div>Loading Cadastral Datasets...</div>
-        <div style="font-size: 0.9rem; color: #94a3b8; margin-top: 10px; font-weight: 400;">This may take a few seconds</div>
+        <div class="loader-title">Synthesizing Cadastral Network</div>
+        <div class="loader-subtitle">Processing spatial intersections. This will take a few moments.</div>
     </div>
 
     <div id="map"></div>
 
-    <div class="sidebar">
-        <h1>The 15-Minute Suburb</h1>
-        <h2>Accessibility Tool</h2>
-        
-        <div class="instructions">
-            <strong>How to use:</strong><br>
-            Check the amenities below. The map will instantly filter to show <em>only</em> properties that are within a 15-minute walk of <strong>ALL</strong> selected services.
+    <div class="sidebar glass-panel">
+        <div class="sidebar-header">
+            <h2>Spatial Equity Dashboard</h2>
+            <h1>The 15-Minute Suburb</h1>
         </div>
         
-        <div class="filter-group" id="filters">
-            <label><input type="checkbox" value="supermarket"> Supermarket</label>
-            <label><input type="checkbox" value="train"> Train Station</label>
-            <label><input type="checkbox" value="tram"> Tram Stop</label>
-            <label><input type="checkbox" value="park"> Public Park</label>
-            <label><input type="checkbox" value="doctors"> Doctors Clinic</label>
-            <label><input type="checkbox" value="hospital"> Hospital</label>
-            <label><input type="checkbox" value="highschool"> High School</label>
-            <label><input type="checkbox" value="uni"> University</label>
-            <label><input type="checkbox" value="postoffice"> Post Office</label>
+        <div class="metric-card">
+            <div class="metric-value" id="visibleCount">0</div>
+            <div class="metric-label">Properties Meeting Criteria</div>
+        </div>
+
+        <div class="sidebar-content">
+            <div class="instructions">
+                Toggle essential services below. The engine will dynamically filter the cadastral matrix to highlight properties within a 15-minute pedestrian catchment of <strong>all</strong> selected amenities.
+            </div>
+            
+            <div class="filter-group" id="filters">
+                <label class="filter-label">Supermarket <input type="checkbox" value="supermarket"></label>
+                <label class="filter-label">Train Station <input type="checkbox" value="train"></label>
+                <label class="filter-label">Tram Stop <input type="checkbox" value="tram"></label>
+                <label class="filter-label">Public Park <input type="checkbox" value="park"></label>
+                <label class="filter-label">Doctors Clinic <input type="checkbox" value="doctors"></label>
+                <label class="filter-label">Hospital <input type="checkbox" value="hospital"></label>
+                <label class="filter-label">High School <input type="checkbox" value="highschool"></label>
+                <label class="filter-label">University <input type="checkbox" value="uni"></label>
+                <label class="filter-label">Post Office <input type="checkbox" value="postoffice"></label>
+            </div>
         </div>
     </div>
 
-    <div class="info-panel" id="infoPanel">
-        <h3>Property Details</h3>
-        <p><strong>Municipality:</strong> <span id="infoLGA"></span></p>
-        <p><strong>Total Score:</strong> <span class="score-badge" id="infoScore"></span>/9</p>
-        <div id="infoAmenities" style="font-size: 0.85rem; line-height: 1.6; margin-top: 15px;"></div>
+    <div class="info-panel glass-panel" id="infoPanel">
+        <h3>Parcel Analytics</h3>
+        <div class="info-row">
+            <span>Municipality:</span>
+            <strong id="infoLGA"></strong>
+        </div>
+        <div class="info-row" style="align-items: center; margin-top: 10px;">
+            <span>Cumulative Score:</span>
+            <span class="score-badge" id="infoScore"></span>
+        </div>
+        <div class="amenities-list" id="infoAmenities"></div>
     </div>
 
-    <div class="legend">
-        <span class="legend-title">Accessibility Score (Higher is Darker)</span>
-        <span class="legend-color" style="background:#08519c;"></span> Banyule<br>
-        <span class="legend-color" style="background:#a63603;"></span> Darebin<br>
-        <span class="legend-color" style="background:#006d2c;"></span> Nillumbik
+    <div class="legend glass-panel">
+        <span class="legend-title">Vulnerability & Access Index</span>
+        
+        <div class="legend-section">
+            <div class="legend-subtitle">Banyule Municipality</div>
+            <div class="gradient-bar banyule-grad"></div>
+            <div class="legend-labels"><span>Low Access (1)</span><span>High Access (9)</span></div>
+        </div>
+        
+        <div class="legend-section">
+            <div class="legend-subtitle">Darebin Municipality</div>
+            <div class="gradient-bar darebin-grad"></div>
+            <div class="legend-labels"><span>Low Access (1)</span><span>High Access (9)</span></div>
+        </div>
+        
+        <div class="legend-section" style="margin-bottom: 0;">
+            <div class="legend-subtitle">Nillumbik Shire</div>
+            <div class="gradient-bar nillumbik-grad"></div>
+            <div class="legend-labels"><span>Low Access (1)</span><span>High Access (9)</span></div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <script>
-        // 1. Initialize Map (CRITICAL for raw GeoJSON speed: preferCanvas is true)
-        const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([-37.7, 145.0], 11); 
+        // ELEMENT 5: Optimized Custom Canvas Renderer
+        // padding: 0.1 stops Leaflet from rendering polygons far off-screen, saving massive memory.
+        const customRenderer = L.canvas({ padding: 0.1, tolerance: 5 });
+
+        // Initialize Map
+        const map = L.map('map', {
+            zoomControl: false, 
+            renderer: customRenderer, // Use custom renderer
+            updateWhenZooming: false, // Prevents lag during zoom animations
+            updateWhenIdle: true
+        }).setView([-37.7, 145.0], 11); 
         
-        // Move zoom controls to bottom left so they don't hit the legend or search bar
-        L.control.zoom({ position: 'bottomleft' }).addTo(map);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-            maxZoom: 19
-        }).addTo(map);
+        // ELEMENT 4: Professional Scale Bar
+        L.control.scale({position: 'bottomright', metric: true, imperial: false}).addTo(map);
 
-        // Add the Address Search Bar (Moved to Top Right)
+        // ELEMENT 2: Basemap Toggle Switcher
+        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO' });
+        const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO' });
+        const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri' });
+        
+        cartoLight.addTo(map); // Default
+        
+        const baseMaps = {
+            "Minimal Light": cartoLight,
+            "Minimal Dark": cartoDark,
+            "Satellite (High Res)": esriSat
+        };
+        L.control.layers(baseMaps, null, {position: 'topright'}).addTo(map);
+
+        // Address Search Bar
         L.Control.geocoder({
             position: 'topright',
-            placeholder: 'Search address in Melbourne...',
+            placeholder: 'Search location...',
             defaultMarkGeocode: false
         }).on('markgeocode', function(e) {
-            const bbox = e.geocode.bbox;
-            map.fitBounds(bbox);
+            map.fitBounds(e.geocode.bbox);
             L.marker(e.geocode.center).addTo(map).bindPopup(e.geocode.name).openPopup();
         }).addTo(map);
 
+        // Global Variables
         let banyuleLayer, darebinLayer, nillumbikLayer;
+        let allDataGroup;
+        let totalFeaturesLoaded = 0;
 
-        // 2. Color Ramps
-        function getBanyuleColor(score) {
-            return score > 7 ? '#08519c' : score > 5 ? '#3182bd' : score > 3 ? '#6baed6' : score > 0 ? '#bdd7e7' : '#eff3ff';
-        }
-        function getDarebinColor(score) {
-            return score > 7 ? '#a63603' : score > 5 ? '#e6550d' : score > 3 ? '#fd8d3c' : score > 0 ? '#fdbe85' : '#feedde';
-        }
-        function getNillumbikColor(score) {
-            return score > 7 ? '#006d2c' : score > 5 ? '#31a354' : score > 3 ? '#74c476' : score > 0 ? '#bae4b3' : '#edf8e9';
-        }
+        // Color Ramps
+        function getBanyuleColor(score) { return score > 7 ? '#08519c' : score > 5 ? '#3182bd' : score > 3 ? '#6baed6' : score > 0 ? '#bdd7e7' : '#eff3ff'; }
+        function getDarebinColor(score) { return score > 7 ? '#a63603' : score > 5 ? '#e6550d' : score > 3 ? '#fd8d3c' : score > 0 ? '#fdbe85' : '#feedde'; }
+        function getNillumbikColor(score) { return score > 7 ? '#006d2c' : score > 5 ? '#31a354' : score > 3 ? '#74c476' : score > 0 ? '#bae4b3' : '#edf8e9'; }
 
-        // 3. Filtering Logic
+        // Filtering Logic
         function passesFilter(feature) {
             const activeCheckboxes = Array.from(document.querySelectorAll('#filters input[type="checkbox"]:checked'));
             if (activeCheckboxes.length === 0) return true; 
             return activeCheckboxes.every(checkbox => feature.properties[checkbox.value] === 1);
         }
 
-        // 4. Styling Function (CRITICAL for speed: weight is 0)
+        // Styling Function (CRITICAL speed: weight 0)
         function styleFeature(feature, colorFunction) {
             if (!passesFilter(feature)) {
                 return { opacity: 0, fillOpacity: 0, weight: 0, interactive: false }; 
             }
             return {
                 fillColor: colorFunction(feature.properties.TotalScore),
-                weight: 0,        // <--- 0 weight removes borders, massively speeding up rendering
-                opacity: 0,
-                fillOpacity: 0.85
+                weight: 0, opacity: 0, fillOpacity: 0.85
             };
         }
 
-        // Re-apply styles instantly when a checkbox is clicked
+        // Update Dynamic Counter
+        function updateMetricCounter() {
+            if (!banyuleLayer || !darebinLayer || !nillumbikLayer) return;
+            
+            let count = 0;
+            // Iterate through layers to count visible properties
+            [banyuleLayer, darebinLayer, nillumbikLayer].forEach(layerGroup => {
+                layerGroup.eachLayer(layer => {
+                    if (passesFilter(layer.feature)) count++;
+                });
+            });
+            
+            // Format number with commas (e.g. 52,000)
+            document.getElementById('visibleCount').innerText = count.toLocaleString();
+        }
+
+        // Checkbox Event Listeners
         document.querySelectorAll('#filters input').forEach(checkbox => {
             checkbox.addEventListener('change', () => {
-                if(banyuleLayer) banyuleLayer.setStyle(f => styleFeature
+                // Update map styles
+                if(banyuleLayer) banyuleLayer.setStyle(f => styleFeature(f, getBanyuleColor));
+                if(darebinLayer) darebinLayer.setStyle(f => styleFeature(f, getDarebinColor));
+                if(nillumbikLayer) nillumbikLayer.setStyle(f => styleFeature(f, getNillumbikColor));
+                
+                // Update the Dashboard Counter
+                updateMetricCounter();
+            });
+        });
+
+        // Hover Interactions
+        function onEachFeature(feature, layer, lgaName) {
+            totalFeaturesLoaded++; // Count total properties during initial load
+            
+            layer.on({
+                mouseover: function(e) {
+                    const activeLayer = e.target;
+                    activeLayer.setStyle({ weight: 2, color: '#f59e0b', opacity: 1, fillOpacity: 1 });
+                    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) { activeLayer.bringToFront(); }
+                    
+                    const p = feature.properties;
+                    document.getElementById('infoLGA').innerText = lgaName;
+                    document.getElementById('infoScore').innerText = p.TotalScore;
+                    
+                    let amenitiesHTML = '';
+                    const list = ['supermarket', 'train', 'tram', 'park', 'doctors', 'hospital', 'highschool', 'uni', 'postoffice'];
+                    list.forEach(item => {
+                        let icon = p[item] === 1 ? '<span style="color:#10b981">✓</span>' : '<span style="color:#ef4444">✗</span>';
+                        let formattedName = item.charAt(0).toUpperCase() + item.slice(1);
+                        amenitiesHTML += `<div>${icon} ${formattedName}</div>`;
+                    });
+                    
+                    document.getElementById('infoAmenities').innerHTML = amenitiesHTML;
+                    document.getElementById('infoPanel').style.display = 'block';
+                },
+                mouseout: function(e) {
+                    if (lgaName === 'Banyule') banyuleLayer.resetStyle(e.target);
+                    if (lgaName === 'Darebin') darebinLayer.resetStyle(e.target);
+                    if (lgaName === 'Nillumbik') nillumbikLayer.resetStyle(e.target);
+                    document.getElementById('infoPanel').style.display = 'none';
+                }
+            });
+        }
+
+        // Data Fetching & Rendering
+        Promise.all([
+            fetch('data/WGS_Banyule.geojson').then(r => r.json()),
+            fetch('data/WGS_Darebin.geojson').then(r => r.json()),
+            fetch('data/WGS_Nillumbik.geojson').then(r => r.json())
+        ])
+        .then(([banyuleData, darebinData, nillumbikData]) => {
+            
+            document.getElementById('loader').style.display = 'none';
+
+            banyuleLayer = L.geoJson(banyuleData, { style: f => styleFeature(f, getBanyuleColor), onEachFeature: (f, l) => onEachFeature(f, l, 'Banyule') }).addTo(map);
+            darebinLayer = L.geoJson(darebinData, { style: f => styleFeature(f, getDarebinColor), onEachFeature: (f, l) => onEachFeature(f, l, 'Darebin') }).addTo(map);
+            nillumbikLayer = L.geoJson(nillumbikData, { style: f => styleFeature(f, getNillumbikColor), onEachFeature: (f, l) => onEachFeature(f, l, 'Nillumbik') }).addTo(map);
+
+            allDataGroup = L.featureGroup([banyuleLayer, darebinLayer, nillumbikLayer]);
+            const initialBounds = allDataGroup.getBounds();
+            map.fitBounds(initialBounds);
+            
+            // Set initial counter
+            document.getElementById('visibleCount').innerText = totalFeaturesLoaded.toLocaleString();
+
+            // ELEMENT 3: Dynamic Reset View Button
+            const ResetControl = L.Control.extend({
+                options: { position: 'topleft' },
+                onAdd: function (map) {
+                    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control reset-view-btn');
+                    container.title = 'Reset Map View';
+                    container.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2L3 9h3v11h12V9h3L12 2zm0 2.84L18.5 9H16v9H8V9H5.5L12 4.84z"/></svg>`;
+                    container.onclick = function() { map.fitBounds(initialBounds); };
+                    return container;
+                }
+            });
+            map.addControl(new ResetControl());
+
+        })
+        .catch(err => {
+            console.error("Error loading GeoJSON data:", err);
+            document.getElementById('loader').innerHTML = "<div style='color: #ef4444; font-weight:bold;'>Error loading cadastral data. Check console (F12).</div>";
+        });
+
+    </script>
+</body>
+</html>
