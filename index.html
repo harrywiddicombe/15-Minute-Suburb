@@ -234,11 +234,11 @@
             });
         }
 
-        // 6. Data Fetching & Auto-Zoom (Pointing to the exact filenames in your image)
+        // 6. Data Fetching & Auto-Zoom (Pointing to the WGS_ filenames)
         Promise.all([
-            fetch('data/Banyule.geojson').then(r => r.json()),
-            fetch('data/Darebin.geojson').then(r => r.json()),
-            fetch('data/Nillumbik.geojson').then(r => r.json())
+            fetch('data/WGS_Banyule.geojson').then(r => r.json()),
+            fetch('data/WGS_Darebin.geojson').then(r => r.json()),
+            fetch('data/WGS_Nillumbik.geojson').then(r => r.json())
         ])
         .then(([banyuleData, darebinData, nillumbikData]) => {
             
