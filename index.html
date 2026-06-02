@@ -231,9 +231,9 @@
 
         // 6. Data Fetching & Auto-Zoom (Pointing to the compressed .json files)
         Promise.all([
-            fetch('data/BanyuleWGS.json').then(r => r.json()),
-            fetch('data/DarebinWGS.json').then(r => r.json()),
-            fetch('data/NillumbikWGS.json').then(r => r.json())
+            fetch('data/Banyule.json').then(r => r.json()),
+            fetch('data/Darebin.json').then(r => r.json()),
+            fetch('data/Nillumbik.json').then(r => r.json())
         ])
         .then(([banyuleData, darebinData, nillumbikData]) => {
             
