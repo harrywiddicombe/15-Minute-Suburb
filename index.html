@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The 15-Minute Suburb: Melbourne Accessibility</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #map { height: 100%; width: 100%; }
+        
+        /* Sidebar Styling */
+        .sidebar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .sidebar h2 { margin-top: 0; font-size: 1.2rem; color: #333; }
+        .filter-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .filter-group label { cursor: pointer; font-size: 0.9rem; }
+        
+        /* Info Panel (Hover Data) */
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 250px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none; /* Hidden until hovered */
+        }
+        .info-panel h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
+        .score-badge { font-weight: bold; padding: 3px 8px; border-radius: 12px; background: #eee; }
+
+        /* Legend */
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .legend-color { width: 15px; height: 15px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div class="sidebar">
+        <h2>The 15-Minute Suburb</h2>
+        <p style="font-size: 0.85rem; color: #666;">Select amenities to filter properties. Only properties with access to <strong>ALL</strong> selected amenities will remain visible.</p>
+        
+        <div class="filter-group" id="filters">
+            <label><input type="checkbox" value="supermarket"> Supermarket</label>
+            <label><input type="checkbox" value="train"> Train Station</label>
+            <label><input type="checkbox" value="tram"> Tram Stop</label>
+            <label><input type="checkbox" value="park"> Public Park</label>
+            <label><input type="checkbox" value="doctors"> Doctors Clinic</label>
+            <label><input type="checkbox" value="hospital"> Hospital</label>
+            <label><input type="checkbox" value="highschool"> High School</label>
+            <label><input type="checkbox" value="uni"> University</label>
+            <label><input type="checkbox" value="postoffice"> Post Office</label>
+        </div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+        <h3>Property Details</h3>
+        <p><strong>LGA:</strong> <span id="infoLGA"></span></p>
+        <p><strong>Total Score:</strong> <span class="score-badge" id="infoScore"></span>/9</p>
+        <hr style="border: 0; border-top: 1px solid #ccc;">
+        <div id="infoAmenities" style="font-size: 0.85rem; line-height: 1.6;"></div>
+    </div>
+
+    <div class="legend">
+        <strong>Total Score (Darker = Better)</strong><br>
+        <span class="legend-color" style="background:#08519c;"></span> Banyule (Blues)<br>
+        <span class="legend-color" style="background:#a63603;"></span> Darebin (Oranges)<br>
+        <span class="legend-color" style="background:#006d2c;"></span> Nillumbik (Greens)
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 1. Initialize Map (Centered roughly on Northern Suburbs)
+        const map = L.map('map').setView([-34.7, 145.0], 12); // Adjust coordinates to center your specific data
+
+        // 2. Add a clean, lightweight basemap (CartoDB Positron)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
+
+        // Variables to hold our layers
+        let banyuleLayer, darebinLayer, nillumbikLayer;
+
+        // 3. Define Color Ramps based on TotalScore (Darker = Higher Score)
+        function getBanyuleColor(score) {
+            return score > 7 ? '#08519c' : score > 5 ? '#3182bd' : score > 3 ? '#6baed6' : score > 0 ? '#bdd7e7' : '#eff3ff';
+        }
+        function getDarebinColor(score) {
+            return score > 7 ? '#a63603' : score > 5 ? '#e6550d' : score > 3 ? '#fd8d3c' : score > 0 ? '#fdbe85' : '#feedde';
+        }
+        function getNillumbikColor(score) {
+            return score > 7 ? '#006d2c' : score > 5 ? '#31a354' : score > 3 ? '#74c476' : score > 0 ? '#bae4b3' : '#edf8e9';
+        }
+
+        // 4. Filtering Logic
+        function passesFilter(feature) {
+            const checkboxes = document.querySelectorAll('#filters input[type="checkbox"]:checked');
+            for (let checkbox of checkboxes) {
+                const attribute = checkbox.value;
+                // If a checked filter has a value of 0 in the property, it fails the filter
+                if (feature.properties[attribute] !== 1) {
+                    return false;
+                }
+            }
+            return true; // Passed all checked filters
+        }
+
+        // 5. Dynamic Styling Function
+        function styleFeature(feature, colorFunction) {
+            // If it doesn't pass the filter, make it completely transparent
+            if (!passesFilter(feature)) {
+                return { opacity: 0, fillOpacity: 0, weight: 0 };
+            }
+            // If it passes, color it based on its TotalScore
+            return {
+                fillColor: colorFunction(feature.properties.TotalScore),
+                weight: 1,
+                opacity: 1,
+                color: '#333', // Dark grey border
+                fillOpacity: 0.8
+            };
+        }
+
+        // Re-apply styles to all layers when a checkbox is toggled
+        document.querySelectorAll('#filters input').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                if(banyuleLayer) banyuleLayer.setStyle(f => styleFeature(f, getBanyuleColor));
+                if(darebinLayer) darebinLayer.setStyle(f => styleFeature(f, getDarebinColor));
+                if(nillumbikLayer) nillumbikLayer.setStyle(f => styleFeature(f, getNillumbikColor));
+            });
+        });
+
+        // 6. Hover Interactions
+        function onEachFeature(feature, layer, lgaName) {
+            layer.on({
+                mouseover: function(e) {
+                    const layer = e.target;
+                    // Highlight border
+                    layer.setStyle({ weight: 3, color: '#ffff00', fillOpacity: 1 });
+                    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) { layer.bringToFront(); }
+                    
+                    // Populate Info Panel
+                    const p = feature.properties;
+                    document.getElementById('infoLGA').innerText = lgaName;
+                    document.getElementById('infoScore').innerText = p.TotalScore;
+                    
+                    // List Amenities
+                    let amenitiesHTML = '';
+                    const list = ['supermarket', 'train', 'tram', 'park', 'doctors', 'hospital', 'highschool', 'uni', 'postoffice'];
+                    list.forEach(item => {
+                        let icon = p[item] === 1 ? '✅' : '❌';
+                        let formattedName = item.charAt(0).toUpperCase() + item.slice(1);
+                        amenitiesHTML += `<div>${icon} ${formattedName}</div>`;
+                    });
+                    
+                    document.getElementById('infoAmenities').innerHTML = amenitiesHTML;
+                    document.getElementById('infoPanel').style.display = 'block';
+                },
+                mouseout: function(e) {
+                    // Reset style based on current filter state
+                    if (lgaName === 'Banyule') banyuleLayer.resetStyle(e.target);
+                    if (lgaName === 'Darebin') darebinLayer.resetStyle(e.target);
+                    if (lgaName === 'Nillumbik') nillumbikLayer.resetStyle(e.target);
+                    document.getElementById('infoPanel').style.display = 'none';
+                }
+            });
+        }
+
+        // 7. Load Data
+        // NOTE: Ensure your GeoJSON files are in a folder named 'data' next to this index.html file
+        
+        fetch('data/Banyule.geojson').then(r => r.json()).then(data => {
+            banyuleLayer = L.geoJson(data, {
+                style: f => styleFeature(f, getBanyuleColor),
+                onEachFeature: (f, l) => onEachFeature(f, l, 'Banyule')
+            }).addTo(map);
+        });
+
+        fetch('data/Darebin.geojson').then(r => r.json()).then(data => {
+            darebinLayer = L.geoJson(data, {
+                style: f => styleFeature(f, getDarebinColor),
+                onEachFeature: (f, l) => onEachFeature(f, l, 'Darebin')
+            }).addTo(map);
+        });
+
+        fetch('data/Nillumbik.geojson').then(r => r.json()).then(data => {
+            nillumbikLayer = L.geoJson(data, {
+                style: f => styleFeature(f, getNillumbikColor),
+                onEachFeature: (f, l) => onEachFeature(f, l, 'Nillumbik')
+            }).addTo(map);
+        });
+
+    </script>
+</body>
+</html>
