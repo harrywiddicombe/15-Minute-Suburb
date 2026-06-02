@@ -134,8 +134,8 @@
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <script>
-        // 1. Initialize Map
-        const map = L.map('map', {zoomControl: false}).setView([-37.7, 145.0], 11); 
+        // 1. Initialize Map (preferCanvas set to true for performance)
+        const map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([-37.7, 145.0], 11); 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -151,7 +151,6 @@
         }).on('markgeocode', function(e) {
             const bbox = e.geocode.bbox;
             map.fitBounds(bbox);
-            // Drop a temporary pin at the searched location
             L.marker(e.geocode.center).addTo(map).bindPopup(e.geocode.name).openPopup();
         }).addTo(map);
 
@@ -230,12 +229,11 @@
             });
         }
 
-        // 6. Data Fetching & Auto-Zoom
-        // Notice the paths now look inside the 'data/' folder and look for the 'WGS' files
+        // 6. Data Fetching & Auto-Zoom (Pointing to the compressed .json files)
         Promise.all([
-            fetch('data/BanyuleWGS.geojson').then(r => r.json()),
-            fetch('data/DarebinWGS.geojson').then(r => r.json()),
-            fetch('data/NillumbikWGS.geojson').then(r => r.json())
+            fetch('data/BanyuleWGS.json').then(r => r.json()),
+            fetch('data/DarebinWGS.json').then(r => r.json()),
+            fetch('data/NillumbikWGS.json').then(r => r.json())
         ])
         .then(([banyuleData, darebinData, nillumbikData]) => {
             
@@ -255,4 +253,19 @@
 
             nillumbikLayer = L.geoJson(nillumbikData, {
                 style: f => styleFeature(f, getNillumbikColor),
-                onEachFeature: (f, l)
+                onEachFeature: (f, l) => onEachFeature(f, l, 'Nillumbik')
+            }).addTo(map);
+
+            // Group them together and automatically zoom the map to fit all data
+            const allDataGroup = L.featureGroup([banyuleLayer, darebinLayer, nillumbikLayer]);
+            map.fitBounds(allDataGroup.getBounds());
+
+        })
+        .catch(err => {
+            console.error("Error loading JSON data:", err);
+            document.getElementById('loader').innerText = "Error loading data. Check console.";
+        });
+
+    </script>
+</body>
+</html>
