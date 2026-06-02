@@ -18,7 +18,7 @@
             --secondary: #334155;
             --accent: #0ea5e9;
             --accent-hover: #0284c7;
-            --bg-glass: rgba(255, 255, 255, 0.92);
+            --bg-glass: rgba(255, 255, 255, 0.94);
             --border: #e2e8f0;
         }
 
@@ -50,7 +50,6 @@
             overflow-y: auto;
         }
         
-        /* Custom Scrollbar for Sidebar */
         .sidebar::-webkit-scrollbar { width: 6px; }
         .sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
@@ -76,42 +75,33 @@
 
         /* Controls Section */
         .sidebar-content { padding: 24px; }
-        .instructions { 
-            font-size: 0.85rem; color: var(--secondary); margin-bottom: 20px; line-height: 1.5; 
-        }
+        .instructions { font-size: 0.85rem; color: var(--secondary); margin-bottom: 20px; line-height: 1.5; }
         
         /* Beautiful Toggle Checkboxes */
         .filter-group { display: flex; flex-direction: column; gap: 8px; }
         .filter-label { 
             cursor: pointer; font-size: 0.95rem; font-weight: 500;
             display: flex; align-items: center; justify-content: space-between;
-            color: var(--secondary);
-            padding: 10px 14px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            transition: all 0.2s ease;
-            background: #ffffff;
+            color: var(--secondary); padding: 10px 14px; border-radius: 10px;
+            border: 1px solid var(--border); transition: all 0.2s ease; background: #ffffff;
         }
         .filter-label:hover { border-color: var(--accent); background: #f0f9ff; color: var(--primary); }
-        .filter-label input[type="checkbox"] { 
-            width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);
-        }
+        .filter-label input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent); }
 
         /* Hover Info Panel */
         .info-panel {
-            position: absolute; top: 20px; left: 380px; width: 280px;
+            position: absolute; top: 20px; left: 380px; width: 300px;
             padding: 20px; display: none;
         }
-        .info-panel h3 { margin: 0 0 10px 0; font-size: 1.1rem; color: var(--primary); font-weight: 700;}
-        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem;}
+        .info-panel h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--primary); font-weight: 700;}
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; line-height: 1.4;}
+        .info-row span { color: var(--secondary); }
+        .info-row strong { text-align: right; max-width: 180px; word-wrap: break-word; }
         .score-badge { font-weight: 800; padding: 4px 12px; border-radius: 20px; background: var(--primary); color: white; font-size: 1.1rem;}
         .amenities-list { margin-top: 15px; border-top: 1px solid var(--border); padding-top: 12px; font-size: 0.85rem; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;}
 
         /* Professional Legend */
-        .legend {
-            position: absolute; bottom: 30px; right: 20px;
-            padding: 20px; width: 260px;
-        }
+        .legend { position: absolute; bottom: 30px; right: 20px; padding: 20px; width: 260px; }
         .legend-title { font-weight: 700; margin-bottom: 12px; display: block; color: var(--primary); font-size: 0.95rem;}
         .legend-section { margin-bottom: 15px; }
         .legend-subtitle { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 6px;}
@@ -121,7 +111,6 @@
         .nillumbik-grad { background: linear-gradient(to right, #edf8e9, #bae4b3, #74c476, #31a354, #006d2c); }
         .legend-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--secondary); font-weight: 500;}
         
-        /* Map Controls Tweaks */
         .leaflet-control-geocoder { box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important; border-radius: 8px !important; border: none !important;}
         
         /* Custom Reset View Button */
@@ -191,6 +180,10 @@
     <div class="info-panel glass-panel" id="infoPanel">
         <h3>Parcel Analytics</h3>
         <div class="info-row">
+            <span>Address:</span>
+            <strong id="infoAddress">Locating...</strong>
+        </div>
+        <div class="info-row">
             <span>Municipality:</span>
             <strong id="infoLGA"></strong>
         </div>
@@ -227,130 +220,131 @@
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <script>
-        // ELEMENT 5: Optimized Custom Canvas Renderer
-        // padding: 0.1 stops Leaflet from rendering polygons far off-screen, saving massive memory.
         const customRenderer = L.canvas({ padding: 0.1, tolerance: 5 });
+        let addressTimeout; // Handle debouncing for performance
 
-        // Initialize Map
         const map = L.map('map', {
             zoomControl: false, 
-            renderer: customRenderer, // Use custom renderer
-            updateWhenZooming: false, // Prevents lag during zoom animations
+            renderer: customRenderer,
+            updateWhenZooming: false, 
             updateWhenIdle: true
         }).setView([-37.7, 145.0], 11); 
         
         L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-        // ELEMENT 4: Professional Scale Bar
         L.control.scale({position: 'bottomright', metric: true, imperial: false}).addTo(map);
 
-        // ELEMENT 2: Basemap Toggle Switcher
-        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO' });
+        const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO' }).addTo(map);
         const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO' });
         const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri' });
         
-        cartoLight.addTo(map); // Default
-        
-        const baseMaps = {
-            "Minimal Light": cartoLight,
-            "Minimal Dark": cartoDark,
-            "Satellite (High Res)": esriSat
-        };
+        const baseMaps = { "Minimal Light": cartoLight, "Minimal Dark": cartoDark, "Satellite (High Res)": esriSat };
         L.control.layers(baseMaps, null, {position: 'topright'}).addTo(map);
 
-        // Address Search Bar
-        L.Control.geocoder({
-            position: 'topright',
-            placeholder: 'Search location...',
-            defaultMarkGeocode: false
-        }).on('markgeocode', function(e) {
+        L.Control.geocoder({ position: 'topright', placeholder: 'Search location...', defaultMarkGeocode: false })
+        .on('markgeocode', function(e) {
             map.fitBounds(e.geocode.bbox);
             L.marker(e.geocode.center).addTo(map).bindPopup(e.geocode.name).openPopup();
         }).addTo(map);
 
-        // Global Variables
-        let banyuleLayer, darebinLayer, nillumbikLayer;
-        let allDataGroup;
+        let banyuleLayer, darebinLayer, nillumbikLayer, allDataGroup;
         let totalFeaturesLoaded = 0;
 
-        // Color Ramps
         function getBanyuleColor(score) { return score > 7 ? '#08519c' : score > 5 ? '#3182bd' : score > 3 ? '#6baed6' : score > 0 ? '#bdd7e7' : '#eff3ff'; }
         function getDarebinColor(score) { return score > 7 ? '#a63603' : score > 5 ? '#e6550d' : score > 3 ? '#fd8d3c' : score > 0 ? '#fdbe85' : '#feedde'; }
         function getNillumbikColor(score) { return score > 7 ? '#006d2c' : score > 5 ? '#31a354' : score > 3 ? '#74c476' : score > 0 ? '#bae4b3' : '#edf8e9'; }
 
-        // Filtering Logic
         function passesFilter(feature) {
             const activeCheckboxes = Array.from(document.querySelectorAll('#filters input[type="checkbox"]:checked'));
             if (activeCheckboxes.length === 0) return true; 
             return activeCheckboxes.every(checkbox => feature.properties[checkbox.value] === 1);
         }
 
-        // Styling Function (CRITICAL speed: weight 0)
+        // Added subtle black borders (weight: 0.4, color: #000000)
         function styleFeature(feature, colorFunction) {
             if (!passesFilter(feature)) {
                 return { opacity: 0, fillOpacity: 0, weight: 0, interactive: false }; 
             }
             return {
                 fillColor: colorFunction(feature.properties.TotalScore),
-                weight: 0, opacity: 0, fillOpacity: 0.85
+                weight: 0.4,
+                color: '#000000',
+                opacity: 0.15,
+                fillOpacity: 0.8
             };
         }
 
-        // Update Dynamic Counter
         function updateMetricCounter() {
             if (!banyuleLayer || !darebinLayer || !nillumbikLayer) return;
-            
             let count = 0;
-            // Iterate through layers to count visible properties
             [banyuleLayer, darebinLayer, nillumbikLayer].forEach(layerGroup => {
-                layerGroup.eachLayer(layer => {
-                    if (passesFilter(layer.feature)) count++;
-                });
+                layerGroup.eachLayer(layer => { if (passesFilter(layer.feature)) count++; });
             });
-            
-            // Format number with commas (e.g. 52,000)
             document.getElementById('visibleCount').innerText = count.toLocaleString();
         }
 
-        // Checkbox Event Listeners
         document.querySelectorAll('#filters input').forEach(checkbox => {
             checkbox.addEventListener('change', () => {
-                // Update map styles
                 if(banyuleLayer) banyuleLayer.setStyle(f => styleFeature(f, getBanyuleColor));
                 if(darebinLayer) darebinLayer.setStyle(f => styleFeature(f, getDarebinColor));
                 if(nillumbikLayer) nillumbikLayer.setStyle(f => styleFeature(f, getNillumbikColor));
-                
-                // Update the Dashboard Counter
                 updateMetricCounter();
             });
         });
 
-        // Hover Interactions
+        // Hover Interactions with Debounced Address Resolver
         function onEachFeature(feature, layer, lgaName) {
-            totalFeaturesLoaded++; // Count total properties during initial load
+            totalFeaturesLoaded++;
             
             layer.on({
                 mouseover: function(e) {
+                    clearTimeout(addressTimeout);
                     const activeLayer = e.target;
-                    activeLayer.setStyle({ weight: 2, color: '#f59e0b', opacity: 1, fillOpacity: 1 });
+                    
+                    // Highlight the property boldly on hover
+                    activeLayer.setStyle({ weight: 1.5, color: '#ffffff', opacity: 0.9, fillOpacity: 0.95 });
                     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) { activeLayer.bringToFront(); }
                     
                     const p = feature.properties;
                     document.getElementById('infoLGA').innerText = lgaName;
                     document.getElementById('infoScore').innerText = p.TotalScore;
+                    document.getElementById('infoAddress').innerText = "Locating...";
                     
+                    // Render checkmarks and crosses
                     let amenitiesHTML = '';
                     const list = ['supermarket', 'train', 'tram', 'park', 'doctors', 'hospital', 'highschool', 'uni', 'postoffice'];
                     list.forEach(item => {
-                        let icon = p[item] === 1 ? '<span style="color:#10b981">✓</span>' : '<span style="color:#ef4444">✗</span>';
+                        let icon = p[item] === 1 ? '<span style="color:#10b981; font-weight:bold;">✓</span>' : '<span style="color:#ef4444; font-weight:bold;">✗</span>';
                         let formattedName = item.charAt(0).toUpperCase() + item.slice(1);
                         amenitiesHTML += `<div>${icon} ${formattedName}</div>`;
                     });
                     
                     document.getElementById('infoAmenities').innerHTML = amenitiesHTML;
                     document.getElementById('infoPanel').style.display = 'block';
+
+                    // Debounce address fetch (150ms delay to prevent network spamming during rapid movement)
+                    const latlng = e.latlng || map.layerPointToLatLng(e.layerPoint);
+                    addressTimeout = setTimeout(() => {
+                        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}&zoom=18&addressdetails=1`, {
+                            headers: { 'User-Agent': 'The-15-Minute-Suburb-Dashboard' }
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data && data.display_name) {
+                                // Clean up long string names to get street name + suburb cleanly
+                                const parts = data.address;
+                                const shortAddress = `${parts.house_number || ''} ${parts.road || ''}, ${parts.suburb || parts.town || ''}`.trim().replace(/^,|,$/g, '');
+                                document.getElementById('infoAddress').innerText = shortAddress || "Unknown Street";
+                            } else {
+                                document.getElementById('infoAddress').innerText = "Address Unmapped";
+                            }
+                        })
+                        .catch(() => {
+                            document.getElementById('infoAddress').innerText = "Lookup Offline";
+                        });
+                    }, 150);
                 },
                 mouseout: function(e) {
+                    clearTimeout(addressTimeout);
                     if (lgaName === 'Banyule') banyuleLayer.resetStyle(e.target);
                     if (lgaName === 'Darebin') darebinLayer.resetStyle(e.target);
                     if (lgaName === 'Nillumbik') nillumbikLayer.resetStyle(e.target);
@@ -359,14 +353,12 @@
             });
         }
 
-        // Data Fetching & Rendering
         Promise.all([
             fetch('data/WGS_Banyule.geojson').then(r => r.json()),
             fetch('data/WGS_Darebin.geojson').then(r => r.json()),
             fetch('data/WGS_Nillumbik.geojson').then(r => r.json())
         ])
         .then(([banyuleData, darebinData, nillumbikData]) => {
-            
             document.getElementById('loader').style.display = 'none';
 
             banyuleLayer = L.geoJson(banyuleData, { style: f => styleFeature(f, getBanyuleColor), onEachFeature: (f, l) => onEachFeature(f, l, 'Banyule') }).addTo(map);
@@ -377,10 +369,8 @@
             const initialBounds = allDataGroup.getBounds();
             map.fitBounds(initialBounds);
             
-            // Set initial counter
             document.getElementById('visibleCount').innerText = totalFeaturesLoaded.toLocaleString();
 
-            // ELEMENT 3: Dynamic Reset View Button
             const ResetControl = L.Control.extend({
                 options: { position: 'topleft' },
                 onAdd: function (map) {
@@ -392,13 +382,11 @@
                 }
             });
             map.addControl(new ResetControl());
-
         })
         .catch(err => {
             console.error("Error loading GeoJSON data:", err);
             document.getElementById('loader').innerHTML = "<div style='color: #ef4444; font-weight:bold;'>Error loading cadastral data. Check console (F12).</div>";
         });
-
     </script>
 </body>
 </html>
